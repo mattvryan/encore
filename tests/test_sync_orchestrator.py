@@ -410,12 +410,13 @@ def test_apply_playlist_file_reads_json_and_applies(
     assert apply.call_args.args[0].name == "From File"
 
 
-def test_handle_playlist_file_deleted_removes_orphaned_music_playlist(
+def test_handle_playlist_file_deleted_logs_and_keeps_music_playlist(
     orchestrator: SyncOrchestrator,
     mapping_store: MappingStore,
-    retry_queue: RetryQueue,
     apple_music: MagicMock,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
+    caplog.set_level("INFO")
     mapping_store.upsert_playlist(
         PlaylistSyncState(
             playlist_id="gone",
@@ -428,9 +429,10 @@ def test_handle_playlist_file_deleted_removes_orphaned_music_playlist(
 
     orchestrator.handle_playlist_file_deleted(Path("deleted.json"))
 
-    apple_music.delete_playlist.assert_called_once_with("Deleted Mix")
-    assert mapping_store.get_playlist("gone") is None
-    assert retry_queue.due_items(datetime.now(UTC)) == []
+    apple_music.delete_playlist.assert_not_called()
+    assert mapping_store.get_playlist("gone") is not None
+    assert "Detected deleted playlist file deleted.json for Deleted Mix" in caplog.text
+    assert "leaving Apple Music playlist unchanged" in caplog.text
 
 
 def test_handle_audio_created_processes_retry_queue_on_import(

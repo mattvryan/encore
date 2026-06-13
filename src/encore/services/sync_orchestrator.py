@@ -123,10 +123,12 @@ class SyncOrchestrator:
             except FileNotFoundError:
                 stored = None
             if stored is None:
-                logger.info("Deleting music playlist: %s", state.name)
-                self._apple_music.delete_playlist(state.name)
-                self._mapping_store.remove_playlist(state.playlist_id)
-                self._retry_queue.clear_playlist(state.playlist_id)
+                logger.info(
+                    "Detected deleted playlist file %s for %s; "
+                    "leaving Apple Music playlist unchanged",
+                    path.name,
+                    state.name,
+                )
 
     def handle_audio_created(self, path: Path) -> None:
         if self._library_import.import_file(path):
