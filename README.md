@@ -76,3 +76,21 @@ fix: retry playlist sync when track is missing
 chore: update dependencies
 docs: add setup instructions
 ```
+
+## Building for distribution
+
+Build a compressed `.dmg` for manual distribution (macOS only):
+
+```bash
+bash scripts/build_dmg.sh
+```
+
+This builds `dist/Encore.app` with py2app, then creates `dist/Encore-<version>.dmg`
+with an **Applications** shortcut for drag-and-drop install. Upload the DMG wherever
+you distribute the app.
+
+To build only the app bundle without a DMG:
+
+```bash
+bash scripts/build_app.sh
+```

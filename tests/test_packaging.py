@@ -1,7 +1,8 @@
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-BUILD_SCRIPT = ROOT / "scripts" / "build_app.sh"
+BUILD_APP_SCRIPT = ROOT / "scripts" / "build_app.sh"
+BUILD_DMG_SCRIPT = ROOT / "scripts" / "build_dmg.sh"
 SETUP_APP = ROOT / "setup_app.py"
 
 EXPECTED_PLIST_KEYS = {
@@ -17,17 +18,33 @@ EXPECTED_PLIST_KEYS = {
 
 
 def test_build_app_script_exists() -> None:
-    assert BUILD_SCRIPT.is_file()
+    assert BUILD_APP_SCRIPT.is_file()
 
 
 def test_build_app_script_runs_py2app() -> None:
-    content = BUILD_SCRIPT.read_text(encoding="utf-8")
+    content = BUILD_APP_SCRIPT.read_text(encoding="utf-8")
 
     assert content.startswith("#!/bin/bash")
     assert "set -euo pipefail" in content
     assert "uv sync --all-groups" in content
     assert "uv run python setup_app.py py2app" in content
     assert "dist/Encore.app" in content
+
+
+def test_build_dmg_script_exists() -> None:
+    assert BUILD_DMG_SCRIPT.is_file()
+
+
+def test_build_dmg_script_creates_versioned_dmg() -> None:
+    content = BUILD_DMG_SCRIPT.read_text(encoding="utf-8")
+
+    assert content.startswith("#!/bin/bash")
+    assert "set -euo pipefail" in content
+    assert "scripts/build_app.sh" in content
+    assert "dist/Encore.app" in content
+    assert "Encore-${VERSION}.dmg" in content
+    assert "hdiutil create" in content
+    assert "ln -s /Applications" in content
 
 
 def test_setup_app_exists() -> None:
