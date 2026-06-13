@@ -25,8 +25,7 @@ def test_build_app_script_runs_py2app() -> None:
 
     assert content.startswith("#!/bin/bash")
     assert "set -euo pipefail" in content
-    assert "uv sync" in content
-    assert "uv pip install py2app" in content
+    assert "uv sync --all-groups" in content
     assert "uv run python setup_app.py py2app" in content
     assert "dist/Encore.app" in content
 
