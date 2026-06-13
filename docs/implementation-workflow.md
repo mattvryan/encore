@@ -54,6 +54,13 @@ When lint and tests pass:
 - One PR per task or step.
 - PR title should follow conventional commit style and describe the task/step (e.g. `feat: initialize uv project (task 1 step 1)`).
 - PR body should summarize what changed and include a brief test plan.
+- **Merged branches are automatically deleted on origin** (GitHub repo setting: *Automatically delete head branches*). After merging, prune stale local branches:
+
+  ```bash
+  git checkout main
+  git pull origin main
+  git fetch --prune
+  ```
 
 ## CI and pre-commit
 
