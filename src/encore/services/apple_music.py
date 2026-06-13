@@ -1,4 +1,6 @@
 import subprocess
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -38,7 +40,36 @@ class AppleMusicService:
         return result.stdout.strip()
 
     def ensure_running(self) -> None:
-        self._run_script('tell application "Music" to activate')
+        self._run_script("""
+            tell application "Music"
+                if not running then launch
+            end tell
+        """)
+
+    @contextmanager
+    def preserve_user_focus(self) -> Iterator[None]:
+        front_app = self._frontmost_app_name()
+        try:
+            yield
+        finally:
+            self._restore_frontmost_app(front_app)
+
+    def _frontmost_app_name(self) -> str | None:
+        name = self._run_script("""
+            tell application "System Events"
+                set frontApps to name of every application process whose frontmost is true
+                if (count of frontApps) is 0 then
+                    return ""
+                end if
+                return item 1 of frontApps
+            end tell
+        """).strip()
+        return name or None
+
+    def _restore_frontmost_app(self, app_name: str | None) -> None:
+        if not app_name or app_name == "Music":
+            return
+        self._run_script(f'tell application "{_escape(app_name)}" to activate')
 
     def list_playlists(self) -> list[MusicPlaylist]:
         output = self._run_script("""

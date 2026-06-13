@@ -50,6 +50,51 @@ def test_run_script_raises_on_failure(mock_run: MagicMock, tmp_path: Path) -> No
 
 
 @patch("encore.services.apple_music.subprocess.run")
+def test_ensure_running_launches_without_activate(
+    mock_run: MagicMock, tmp_path: Path
+) -> None:
+    mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
+    svc = AppleMusicService(tmp_path)
+
+    svc.ensure_running()
+
+    script = mock_run.call_args.args[0][2]
+    assert "launch" in script
+    assert "activate" not in script
+
+
+@patch("encore.services.apple_music.subprocess.run")
+def test_preserve_user_focus_restores_previous_app(
+    mock_run: MagicMock, tmp_path: Path
+) -> None:
+    mock_run.side_effect = [
+        MagicMock(returncode=0, stdout="Cursor", stderr=""),
+        MagicMock(returncode=0, stdout="", stderr=""),
+    ]
+    svc = AppleMusicService(tmp_path)
+
+    with svc.preserve_user_focus():
+        pass
+
+    assert mock_run.call_count == 2
+    restore_script = mock_run.call_args_list[1].args[0][2]
+    assert 'tell application "Cursor" to activate' in restore_script
+
+
+@patch("encore.services.apple_music.subprocess.run")
+def test_preserve_user_focus_skips_restore_when_music_was_frontmost(
+    mock_run: MagicMock, tmp_path: Path
+) -> None:
+    mock_run.return_value = MagicMock(returncode=0, stdout="Music", stderr="")
+    svc = AppleMusicService(tmp_path)
+
+    with svc.preserve_user_focus():
+        pass
+
+    mock_run.assert_called_once()
+
+
+@patch("encore.services.apple_music.subprocess.run")
 def test_run_script_uses_utf8_encoding(mock_run: MagicMock, tmp_path: Path) -> None:
     mock_run.return_value = MagicMock(returncode=0, stdout="ok", stderr="")
     svc = AppleMusicService(tmp_path)
