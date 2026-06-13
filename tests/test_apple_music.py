@@ -1,3 +1,4 @@
+import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -39,6 +40,14 @@ def test_location_to_relative_outside_root(tmp_path: Path) -> None:
 
 def test_location_to_relative_empty() -> None:
     assert _location_to_relative("", Path("/Music")) is None
+
+
+@patch("encore.services.apple_music.subprocess.run")
+def test_run_script_raises_on_timeout(mock_run: MagicMock, tmp_path: Path) -> None:
+    mock_run.side_effect = subprocess.TimeoutExpired(cmd="osascript", timeout=120)
+    svc = AppleMusicService(tmp_path)
+    with pytest.raises(AppleMusicError, match="timed out"):
+        svc._run_script("tell application Music to quit")
 
 
 @patch("encore.services.apple_music.subprocess.run")
@@ -110,29 +119,56 @@ def test_list_playlists_parses_non_ascii_names(
 ) -> None:
     mock_run.return_value = MagicMock(
         returncode=0,
-        stdout="Café Mix\tABC123\n",
+        stdout="Café Mix\x1f123\n",
         stderr="",
     )
     svc = AppleMusicService(tmp_path)
 
     playlists = svc.list_playlists()
 
-    assert playlists == [MusicPlaylist(name="Café Mix", persistent_id="ABC123")]
+    assert playlists == [MusicPlaylist(name="Café Mix", persistent_id="123")]
 
 
 @patch("encore.services.apple_music.subprocess.run")
 def test_list_playlists_parses_output(mock_run: MagicMock, tmp_path: Path) -> None:
     mock_run.return_value = MagicMock(
         returncode=0,
-        stdout="Road Trip\tABC123\nWorkout\tDEF456\n",
+        stdout="Road Trip\x1f123\nWorkout\x1f456\n",
         stderr="",
     )
     svc = AppleMusicService(tmp_path)
     playlists = svc.list_playlists()
     assert playlists == [
-        MusicPlaylist(name="Road Trip", persistent_id="ABC123"),
-        MusicPlaylist(name="Workout", persistent_id="DEF456"),
+        MusicPlaylist(name="Road Trip", persistent_id="123"),
+        MusicPlaylist(name="Workout", persistent_id="456"),
     ]
+
+
+@patch("encore.services.apple_music.subprocess.run")
+def test_list_playlists_skips_folders(mock_run: MagicMock, tmp_path: Path) -> None:
+    mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
+    svc = AppleMusicService(tmp_path)
+
+    svc.list_playlists()
+
+    script = mock_run.call_args.args[0][2]
+    assert "class of p is not folder" in script
+
+
+@patch("encore.services.apple_music.subprocess.run")
+def test_get_playlist_tracks_uses_playlist_id(
+    mock_run: MagicMock, tmp_path: Path
+) -> None:
+    mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
+    svc = AppleMusicService(tmp_path)
+    playlist = MusicPlaylist(name='Music"', persistent_id="12345")
+
+    svc.get_playlist_tracks(playlist)
+
+    script = mock_run.call_args.args[0][2]
+    assert "whose id is 12345" in script
+    assert "whose name is" not in script
+    assert mock_run.call_args.kwargs["timeout"] == 300
 
 
 @patch("encore.services.apple_music.subprocess.run")
@@ -150,7 +186,9 @@ def test_get_playlist_tracks_parses_output_and_relative_paths(
         stderr="",
     )
     svc = AppleMusicService(music_root)
-    tracks = svc.get_playlist_tracks("My Playlist")
+    tracks = svc.get_playlist_tracks(
+        MusicPlaylist(name="My Playlist", persistent_id="999")
+    )
     assert tracks == [
         MusicTrack(
             relative_path="Jazz/Blue.mp3",

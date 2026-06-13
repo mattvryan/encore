@@ -4,6 +4,10 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
+DEFAULT_SCRIPT_TIMEOUT = 120
+TRACK_FETCH_TIMEOUT = 300
+PLAYLIST_FIELD_SEP = "\x1f"
+
 
 class AppleMusicError(Exception):
     pass
@@ -28,13 +32,19 @@ class AppleMusicService:
     def __init__(self, music_root: Path) -> None:
         self._music_root = music_root.resolve()
 
-    def _run_script(self, script: str) -> str:
-        result = subprocess.run(
-            ["osascript", "-e", script],
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-        )
+    def _run_script(
+        self, script: str, *, timeout: float = DEFAULT_SCRIPT_TIMEOUT
+    ) -> str:
+        try:
+            result = subprocess.run(
+                ["osascript", "-e", script],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                timeout=timeout,
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise AppleMusicError(f"AppleScript timed out after {timeout:g}s") from exc
         if result.returncode != 0:
             raise AppleMusicError(result.stderr.strip() or "AppleScript failed")
         return result.stdout.strip()
@@ -72,11 +82,15 @@ class AppleMusicService:
         self._run_script(f'tell application "{_escape(app_name)}" to activate')
 
     def list_playlists(self) -> list[MusicPlaylist]:
+        sep = PLAYLIST_FIELD_SEP
         output = self._run_script("""
             tell application "Music"
                 set output to ""
+                set delim to (ASCII character 31)
                 repeat with p in user playlists
-                    set output to output & (name of p) & tab & (id of p as string) & linefeed
+                    if class of p is not folder then
+                        set output to output & (name of p) & delim & (id of p as string) & linefeed
+                    end if
                 end repeat
                 return output
             end tell
@@ -85,16 +99,22 @@ class AppleMusicService:
         for line in output.splitlines():
             if not line.strip():
                 continue
-            name, pid = line.split("\t", 1)
+            if sep not in line:
+                continue
+            name, pid = line.split(sep, 1)
+            if not pid.isdigit():
+                continue
             playlists.append(MusicPlaylist(name=name, persistent_id=pid))
         return playlists
 
-    def get_playlist_tracks(self, playlist_name: str) -> list[MusicTrack]:
-        root = str(self._music_root)  # noqa: F841
-        output = self._run_script(f'''
+    def get_playlist_tracks(self, playlist: MusicPlaylist) -> list[MusicTrack]:
+        if not playlist.persistent_id.isdigit():
+            raise AppleMusicError(f"Invalid playlist id: {playlist.persistent_id!r}")
+        output = self._run_script(
+            f"""
             tell application "Music"
                 set output to ""
-                set targetPlaylist to first user playlist whose name is "{_escape(playlist_name)}"
+                set targetPlaylist to first user playlist whose id is {playlist.persistent_id}
                 repeat with t in tracks of targetPlaylist
                     set trackLocation to ""
                     try
@@ -104,7 +124,9 @@ class AppleMusicService:
                 end repeat
                 return output
             end tell
-        ''')
+        """,
+            timeout=TRACK_FETCH_TIMEOUT,
+        )
         tracks = []
         for line in output.splitlines():
             if not line.strip():
