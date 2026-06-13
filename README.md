@@ -1,12 +1,14 @@
-# encore
+# Encore
 
-Sync your Apple Music library via Dropbox to all your computers.
+Sync your Apple Music library and playlists across Macs via Dropbox.
 
 ## Requirements
 
 - macOS 13+
 - [uv](https://docs.astral.sh/uv/) (Python package manager)
 - Python 3.12+
+- Apple Music with Automation permission granted to Encore
+- Shared Dropbox music folder on each Mac
 
 ## Setup
 
@@ -19,6 +21,13 @@ make install
 This creates a virtual environment, installs dependencies, and registers git hooks.
 
 ## Development
+
+Run the menu bar app:
+
+```bash
+uv sync
+uv run encore
+```
 
 | Command | Description |
 |---------|-------------|
