@@ -110,12 +110,15 @@ class EncoreApp(rumps.App):
         self._syncing = True
         self._update_menubar_icon()
         self._set_status("Syncing...")
+        logger.info("Sync started")
         try:
             self._orchestrator.sync_all()
             exhausted = self._orchestrator.exhausted_count
             if exhausted:
+                logger.info("Sync finished with %d missing track(s)", exhausted)
                 self._set_status(f"{exhausted} track(s) not found")
             else:
+                logger.info("Sync finished")
                 self._set_status("Idle")
         except Exception as exc:
             logger.exception("Sync failed")
