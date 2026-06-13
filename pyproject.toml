@@ -29,6 +29,7 @@ packages = ["src/encore"]
 dev = [
     "commitizen>=4.16.3",
     "pre-commit>=4.6.0",
+    "py2app>=0.28.10",
     "pytest>=9.0.3",
     "ruff>=0.15.17",
 ]

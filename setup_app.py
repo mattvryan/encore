@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import Distribution, setup
 
 APP = ["src/encore/__main__.py"]
 DATA_FILES = []
@@ -17,10 +17,19 @@ OPTIONS = {
     "packages": ["encore", "rumps", "watchdog"],
 }
 
+
+class Py2appDistribution(Distribution):
+    def parse_config_files(self, filenames=None, ignore_option_errors=False):
+        super().parse_config_files(filenames, ignore_option_errors)
+        # py2app 0.28.9+ rejects non-empty install_requires; setuptools
+        # loads dependencies from pyproject.toml after Distribution.__init__.
+        self.install_requires = []
+
+
 setup(
     app=APP,
     name="Encore",
     data_files=DATA_FILES,
     options={"py2app": OPTIONS},
-    setup_requires=["py2app"],
+    distclass=Py2appDistribution,
 )
