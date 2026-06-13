@@ -142,11 +142,29 @@ def test_quit_app_stops_watcher_and_quits(encore_app_module: Any) -> None:
     app = encore_app_module.EncoreApp()
     mock_watcher = MagicMock()
     app._watcher = mock_watcher
+    app._orchestrator = MagicMock()
 
     app.quit_app(None)
 
     mock_watcher.stop.assert_called_once()
+    assert app._watcher is None
+    assert app._orchestrator is None
     rumps.quit_application.assert_called_once()
+
+
+def test_start_services_replaces_existing_watcher(encore_app_module: Any) -> None:
+    app = encore_app_module.EncoreApp()
+    old_watcher = MagicMock()
+    app._watcher = old_watcher
+    app._orchestrator = MagicMock()
+    app.settings.music_root = Path("/tmp/music")
+
+    with patch("encore.app.FolderWatcher") as mock_folder_watcher:
+        mock_folder_watcher.return_value = MagicMock()
+        app._start_services()
+
+    old_watcher.stop.assert_called_once()
+    mock_folder_watcher.return_value.start.assert_called_once()
 
 
 def test_main_starts_encore_app(encore_app_module: Any) -> None:

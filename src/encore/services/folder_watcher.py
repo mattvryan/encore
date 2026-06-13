@@ -11,23 +11,39 @@ from encore.utils.paths import is_audio_file
 logger = logging.getLogger(__name__)
 
 
-class _AudioHandler(FileSystemEventHandler):
+class _MusicRootHandler(FileSystemEventHandler):
     def __init__(
         self,
         music_root: Path,
-        on_created: Callable[[Path], None],
-        on_deleted: Callable[[Path], None],
+        sync_dir: Path,
+        on_audio_created: Callable[[Path], None],
+        on_audio_deleted: Callable[[Path], None],
+        on_playlist_changed: Callable[[Path], None],
+        on_playlist_deleted: Callable[[Path], None],
     ) -> None:
-        self._music_root = music_root
-        self._on_created = on_created
-        self._on_deleted = on_deleted
+        self._music_root = music_root.resolve()
+        self._sync_dir = sync_dir.resolve()
+        self._on_audio_created = on_audio_created
+        self._on_audio_deleted = on_audio_deleted
+        self._on_playlist_changed = on_playlist_changed
+        self._on_playlist_deleted = on_playlist_deleted
 
-    def _to_path(self, src_path: str) -> Path | None:
+    def _in_sync_dir(self, path: Path) -> bool:
+        try:
+            path.resolve().relative_to(self._sync_dir)
+        except ValueError:
+            return False
+        return True
+
+    def _is_playlist_file(self, path: Path) -> bool:
+        return path.suffix == ".json" and not path.name.endswith(".tmp")
+
+    def _audio_path(self, src_path: str) -> Path | None:
         path = Path(src_path)
         if not is_audio_file(path):
             return None
         try:
-            path.resolve().relative_to(self._music_root.resolve())
+            path.resolve().relative_to(self._music_root)
         except ValueError:
             return None
         return path
@@ -35,16 +51,33 @@ class _AudioHandler(FileSystemEventHandler):
     def on_created(self, event) -> None:
         if event.is_directory:
             return
-        path = self._to_path(event.src_path)
-        if path:
-            self._on_created(path)
+        path = Path(event.src_path)
+        if self._in_sync_dir(path):
+            if self._is_playlist_file(path):
+                self._on_playlist_changed(path)
+            return
+        audio_path = self._audio_path(event.src_path)
+        if audio_path:
+            self._on_audio_created(audio_path)
+
+    def on_modified(self, event) -> None:
+        if event.is_directory:
+            return
+        path = Path(event.src_path)
+        if self._in_sync_dir(path) and self._is_playlist_file(path):
+            self._on_playlist_changed(path)
 
     def on_deleted(self, event) -> None:
         if event.is_directory:
             return
-        path = self._to_path(event.src_path)
-        if path:
-            self._on_deleted(path)
+        path = Path(event.src_path)
+        if self._in_sync_dir(path):
+            if path.suffix == ".json":
+                self._on_playlist_deleted(path)
+            return
+        audio_path = self._audio_path(event.src_path)
+        if audio_path:
+            self._on_audio_deleted(audio_path)
 
 
 class FolderWatcher:
@@ -64,55 +97,27 @@ class FolderWatcher:
         self._on_playlist_changed = on_playlist_changed
         self._on_playlist_deleted = on_playlist_deleted
         self._observer = Observer()
+        self._started = False
 
     def start(self) -> None:
-        audio_handler = _AudioHandler(
+        if self._started:
+            return
+        handler = _MusicRootHandler(
             self._music_root,
+            self._sync_dir,
             self._on_audio_created,
             self._on_audio_deleted,
+            self._on_playlist_changed,
+            self._on_playlist_deleted,
         )
-        self._observer.schedule(audio_handler, str(self._music_root), recursive=True)
-        self._observer.schedule(
-            _PlaylistSyncHandler(
-                self._on_playlist_changed,
-                self._on_playlist_deleted,
-            ),
-            str(self._sync_dir),
-            recursive=False,
-        )
+        self._observer.schedule(handler, str(self._music_root), recursive=True)
         thread = threading.Thread(target=self._observer.start, daemon=True)
         thread.start()
+        self._started = True
 
     def stop(self) -> None:
+        if not self._started:
+            return
         self._observer.stop()
         self._observer.join()
-
-
-class _PlaylistSyncHandler(FileSystemEventHandler):
-    def __init__(
-        self,
-        on_changed: Callable[[Path], None],
-        on_deleted: Callable[[Path], None],
-    ) -> None:
-        self._on_changed = on_changed
-        self._on_deleted = on_deleted
-
-    def on_created(self, event) -> None:
-        if not event.is_directory:
-            self._handle(event.src_path)
-
-    def on_modified(self, event) -> None:
-        if not event.is_directory:
-            self._handle(event.src_path)
-
-    def _handle(self, src_path: str) -> None:
-        path = Path(src_path)
-        if path.suffix == ".json" and not path.name.endswith(".tmp"):
-            self._on_changed(path)
-
-    def on_deleted(self, event) -> None:
-        if event.is_directory:
-            return
-        path = Path(event.src_path)
-        if path.suffix == ".json":
-            self._on_deleted(path)
+        self._started = False

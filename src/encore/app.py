@@ -47,11 +47,18 @@ class EncoreApp(rumps.App):
             "Quit",
         ]
 
+    def _stop_services(self) -> None:
+        if self._watcher is not None:
+            self._watcher.stop()
+            self._watcher = None
+        self._orchestrator = None
+
     def _start_services(self) -> None:
         root = self.settings.music_root
         sync_dir = self.settings.sync_dir
         if root is None or sync_dir is None:
             return
+        self._stop_services()
         apple_music = AppleMusicService(root)
         playlist_store = PlaylistFileStore(sync_dir)
         mapping_store = MappingStore(self.settings.state_path)
@@ -163,6 +170,5 @@ class EncoreApp(rumps.App):
 
     @rumps.clicked("Quit")
     def quit_app(self, _) -> None:
-        if self._watcher:
-            self._watcher.stop()
+        self._stop_services()
         rumps.quit_application()
