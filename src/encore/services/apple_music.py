@@ -31,6 +31,7 @@ class AppleMusicService:
             ["osascript", "-e", script],
             capture_output=True,
             text=True,
+            encoding="utf-8",
         )
         if result.returncode != 0:
             raise AppleMusicError(result.stderr.strip() or "AppleScript failed")
