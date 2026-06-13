@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from encore import __version__
+
 ROOT = Path(__file__).resolve().parents[1]
 BUILD_APP_SCRIPT = ROOT / "scripts" / "build_app.sh"
 BUILD_DMG_SCRIPT = ROOT / "scripts" / "build_dmg.sh"
@@ -9,7 +11,7 @@ EXPECTED_PLIST_KEYS = {
     "CFBundleName": "Encore",
     "CFBundleDisplayName": "Encore",
     "CFBundleIdentifier": "com.encore.app",
-    "CFBundleVersion": "0.1.0",
+    "CFBundleVersion": __version__,
     "LSUIElement": True,
     "NSAppleEventsUsageDescription": (
         "Encore needs to control Music to sync playlists."
@@ -54,8 +56,12 @@ def test_setup_app_exists() -> None:
 def test_setup_app_has_expected_plist_keys() -> None:
     content = SETUP_APP.read_text(encoding="utf-8")
 
+    assert "from encore import __version__" in content
     for key, value in EXPECTED_PLIST_KEYS.items():
         assert f'"{key}"' in content
+        if key == "CFBundleVersion":
+            assert '"CFBundleVersion": __version__' in content
+            continue
         if isinstance(value, bool):
             assert f'"{key}": {value}' in content
         else:

@@ -47,12 +47,16 @@ class PlaylistFileStore:
     def list_all(self) -> list[Playlist]:
         return [self.read(pid) for pid in self._id_to_filename]
 
+    @property
+    def allow_list_path(self) -> Path:
+        return self._sync_dir / PLAYLIST_ALLOW_FILENAME
+
     def allowed_names(self) -> set[str] | None:
-        path = self._sync_dir / PLAYLIST_ALLOW_FILENAME
+        path = self.allow_list_path
         if not path.exists():
             return None
         names: set[str] = set()
-        for line in path.read_text().splitlines():
+        for line in path.read_text(encoding="utf-8-sig").splitlines():
             name = line.strip()
             if name:
                 names.add(name)

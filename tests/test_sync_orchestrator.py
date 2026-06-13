@@ -586,4 +586,27 @@ def test_sync_all_logs_when_allow_list_active(
     ):
         orchestrator.sync_all()
 
-    assert "Playlist allow-list active (2 name(s))" in caplog.text
+    assert "Playlist allow-list active at" in caplog.text
+    assert "Workout" in caplog.text
+    assert "Chill Mix" in caplog.text
+
+
+def test_sync_all_logs_when_no_allow_list(
+    orchestrator: SyncOrchestrator,
+    sync_dir: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level("INFO")
+    focus = orchestrator._apple_music.preserve_user_focus.return_value
+    focus.__enter__ = MagicMock(return_value=None)
+    focus.__exit__ = MagicMock(return_value=False)
+    with (
+        patch.object(orchestrator, "sync_music_to_files"),
+        patch.object(orchestrator, "sync_files_to_music"),
+        patch.object(orchestrator, "_process_retry_queue"),
+    ):
+        orchestrator.sync_all()
+
+    assert (
+        f"No playlist allow-list at {sync_dir / PLAYLIST_ALLOW_FILENAME}" in caplog.text
+    )

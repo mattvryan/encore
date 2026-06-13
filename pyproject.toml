@@ -1,6 +1,6 @@
 [project]
 name = "encore"
-version = "0.1.0"
+version = "0.1.1"
 description = "Sync Apple Music playlists across Macs via Dropbox"
 readme = "README.md"
 authors = [
@@ -61,7 +61,7 @@ known-first-party = ["encore"]
 
 [tool.commitizen]
 name = "cz_conventional_commits"
-version = "0.1.0"
+version = "0.1.1"
 tag_format = "v$version"
 version_files = [
     "pyproject.toml:version",
