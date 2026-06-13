@@ -3,11 +3,12 @@ from pathlib import Path
 from types import ModuleType
 from unittest.mock import MagicMock, patch
 
+from encore import __version__
 from encore.about import ABOUT_MESSAGE, show_about
 
 
 def test_about_message_includes_version() -> None:
-    assert "Version 0.1.0" in ABOUT_MESSAGE
+    assert f"Version {__version__}" in ABOUT_MESSAGE
     assert "Apple Music" in ABOUT_MESSAGE
 
 

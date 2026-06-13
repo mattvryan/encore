@@ -1,5 +1,7 @@
 from setuptools import Distribution, setup
 
+from encore import __version__
+
 APP = ["src/encore/__main__.py"]
 DATA_FILES = []
 ICON_FILE = "assets/icons/encore.icns"
@@ -10,7 +12,7 @@ OPTIONS = {
         "CFBundleName": "Encore",
         "CFBundleDisplayName": "Encore",
         "CFBundleIdentifier": "com.encore.app",
-        "CFBundleVersion": "0.1.0",
+        "CFBundleVersion": __version__,
         "LSUIElement": True,
         "NSAppleEventsUsageDescription": "Encore needs to control Music to sync playlists.",
     },

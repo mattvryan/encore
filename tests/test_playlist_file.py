@@ -82,3 +82,12 @@ def test_allowed_names_parses_playlist_names(tmp_path: Path) -> None:
     )
 
     assert store.allowed_names() == {"Road Trip", "Workout", "Chill Mix"}
+
+
+def test_allowed_names_handles_utf8_bom(tmp_path: Path) -> None:
+    store = PlaylistFileStore(tmp_path)
+    (tmp_path / PLAYLIST_ALLOW_FILENAME).write_bytes(
+        b"\xef\xbb\xbfWorkout\nRoad Trip\n"
+    )
+
+    assert store.allowed_names() == {"Workout", "Road Trip"}

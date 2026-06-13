@@ -46,9 +46,25 @@ class SyncOrchestrator:
 
     def sync_all(self) -> None:
         logger.info("Starting sync")
+        allow_path = self._playlist_store.allow_list_path
         allowed = self._playlist_store.allowed_names()
-        if allowed is not None:
-            logger.info("Playlist allow-list active (%d name(s))", len(allowed))
+        if allowed is None:
+            logger.info(
+                "No playlist allow-list at %s; syncing all playlists",
+                allow_path,
+            )
+        elif not allowed:
+            logger.warning(
+                "Playlist allow-list at %s is empty; no playlists will sync",
+                allow_path,
+            )
+        else:
+            logger.info(
+                "Playlist allow-list active at %s (%d name(s): %s)",
+                allow_path,
+                len(allowed),
+                ", ".join(sorted(allowed)),
+            )
         self._apple_music.ensure_running()
         with self._apple_music.preserve_user_focus():
             self.sync_music_to_files()

@@ -4,6 +4,7 @@ from pathlib import Path
 
 import rumps
 
+from encore import __version__
 from encore.about import show_about
 from encore.icons import menubar_icon_path
 from encore.services.apple_music import AppleMusicService
@@ -110,7 +111,7 @@ class EncoreApp(rumps.App):
         self._syncing = True
         self._update_menubar_icon()
         self._set_status("Syncing...")
-        logger.info("Sync started")
+        logger.info("Sync started (Encore %s)", __version__)
         try:
             self._orchestrator.sync_all()
             exhausted = self._orchestrator.exhausted_count
