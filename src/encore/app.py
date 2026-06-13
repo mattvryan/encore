@@ -22,7 +22,7 @@ class EncoreApp(rumps.App):
     def __init__(self) -> None:
         super().__init__(
             "Encore",
-            icon=str(menubar_icon_path()),
+            icon=str(menubar_icon_path(syncing=False)),
             quit_button=None,
         )
         self.settings = Settings.load()
@@ -108,6 +108,7 @@ class EncoreApp(rumps.App):
         if not self._orchestrator:
             return
         self._syncing = True
+        self._update_menubar_icon()
         self._set_status("Syncing...")
         try:
             self._orchestrator.sync_all()
@@ -121,6 +122,10 @@ class EncoreApp(rumps.App):
             self._set_status(f"Error: {exc}")
         finally:
             self._syncing = False
+            self._update_menubar_icon()
+
+    def _update_menubar_icon(self) -> None:
+        self.icon = str(menubar_icon_path(syncing=self._syncing))
 
     def _set_status(self, text: str) -> None:
         self.menu["Status: Idle"].title = f"Status: {text}"
