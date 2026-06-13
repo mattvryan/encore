@@ -50,6 +50,32 @@ def test_run_script_raises_on_failure(mock_run: MagicMock, tmp_path: Path) -> No
 
 
 @patch("encore.services.apple_music.subprocess.run")
+def test_run_script_uses_utf8_encoding(mock_run: MagicMock, tmp_path: Path) -> None:
+    mock_run.return_value = MagicMock(returncode=0, stdout="ok", stderr="")
+    svc = AppleMusicService(tmp_path)
+
+    svc._run_script('tell application "Music" to activate')
+
+    assert mock_run.call_args.kwargs["encoding"] == "utf-8"
+
+
+@patch("encore.services.apple_music.subprocess.run")
+def test_list_playlists_parses_non_ascii_names(
+    mock_run: MagicMock, tmp_path: Path
+) -> None:
+    mock_run.return_value = MagicMock(
+        returncode=0,
+        stdout="Café Mix\tABC123\n",
+        stderr="",
+    )
+    svc = AppleMusicService(tmp_path)
+
+    playlists = svc.list_playlists()
+
+    assert playlists == [MusicPlaylist(name="Café Mix", persistent_id="ABC123")]
+
+
+@patch("encore.services.apple_music.subprocess.run")
 def test_list_playlists_parses_output(mock_run: MagicMock, tmp_path: Path) -> None:
     mock_run.return_value = MagicMock(
         returncode=0,
