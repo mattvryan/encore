@@ -1,8 +1,8 @@
-from encore import __version__
+from encore.app import EncoreApp
 
 
 def main() -> None:
-    print(f"encore {__version__}")
+    EncoreApp().run()
 
 
 if __name__ == "__main__":
