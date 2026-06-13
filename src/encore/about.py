@@ -1,5 +1,3 @@
-import rumps
-
 from encore import __version__
 from encore.icons import app_icon_path
 
@@ -9,6 +7,8 @@ ABOUT_MESSAGE = (
 
 
 def show_about() -> None:
+    import rumps
+
     icon = app_icon_path()
     rumps.alert(
         "Encore",
