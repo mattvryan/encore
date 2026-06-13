@@ -4,6 +4,7 @@ from pathlib import Path
 
 import rumps
 
+from encore.about import show_about
 from encore.icons import menubar_icon_path
 from encore.services.apple_music import AppleMusicService
 from encore.services.folder_watcher import FolderWatcher
@@ -42,6 +43,7 @@ class EncoreApp(rumps.App):
             "Choose Music Folder...",
             rumps.MenuItem("Launch at Login", callback=self._toggle_launch_at_login),
             None,
+            "About Encore...",
             "Quit",
         ]
 
@@ -153,6 +155,10 @@ class EncoreApp(rumps.App):
         sender.state = self.settings.launch_at_login
         self.settings.save()
         set_launch_at_login(self.settings.launch_at_login)
+
+    @rumps.clicked("About Encore...")
+    def about(self, _) -> None:
+        show_about()
 
     @rumps.clicked("Quit")
     def quit_app(self, _) -> None:
