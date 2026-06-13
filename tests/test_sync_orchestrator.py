@@ -144,6 +144,87 @@ def test_sync_music_to_files_writes_updated_playlist(
     assert saved.tracks == [PlaylistTrack(relative_path="Pop/hit.mp3")]
 
 
+def test_sync_music_to_files_logs_synced_playlist(
+    orchestrator: SyncOrchestrator,
+    apple_music: MagicMock,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level("INFO")
+    apple_music.list_playlists.return_value = [
+        MusicPlaylist(name="Workout", persistent_id="PID2")
+    ]
+    apple_music.get_playlist_tracks.return_value = [
+        MusicTrack("Pop/hit.mp3", "T1", "Hit", "Artist", "loc")
+    ]
+
+    orchestrator.sync_music_to_files()
+
+    assert "Syncing playlist music→file: Workout" in caplog.text
+    assert "Synced playlist music→file: Workout (1 tracks)" in caplog.text
+
+
+def test_sync_music_to_files_logs_unchanged_playlist(
+    orchestrator: SyncOrchestrator,
+    mapping_store: MappingStore,
+    apple_music: MagicMock,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level("INFO")
+    apple_music.list_playlists.return_value = [
+        MusicPlaylist(name="Road Trip", persistent_id="PID1")
+    ]
+    apple_music.get_playlist_tracks.return_value = [
+        MusicTrack("Rock/a.mp3", "T1", "A", "Artist", "loc")
+    ]
+    mapping_store.upsert_playlist(
+        PlaylistSyncState(
+            playlist_id="PID1",
+            name="Road Trip",
+            music_hash=_hash_paths(["Rock/a.mp3"]),
+            file_hash="file-hash",
+            last_synced_at=datetime.now(UTC),
+        )
+    )
+
+    orchestrator.sync_music_to_files()
+
+    assert "Playlist unchanged music→file: Road Trip" in caplog.text
+
+
+def test_apply_playlist_to_music_logs_track_changes(
+    orchestrator: SyncOrchestrator,
+    apple_music: MagicMock,
+    music_root: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level("INFO")
+    added = music_root / "Rock" / "new.mp3"
+    added.parent.mkdir(parents=True)
+    added.write_bytes(b"x")
+    apple_music.list_playlists.return_value = [
+        MusicPlaylist(name="Mix", persistent_id="PID")
+    ]
+    apple_music.get_playlist_tracks.return_value = [
+        MusicTrack("Rock/old.mp3", "T1", "Old", "Artist", "loc1"),
+    ]
+    apple_music.track_exists_at_path.return_value = True
+    playlist = Playlist(
+        id="pl-1",
+        name="Mix",
+        updated_at=datetime.now(UTC),
+        tracks=[
+            PlaylistTrack(relative_path="Rock/new.mp3"),
+        ],
+    )
+
+    orchestrator._apply_playlist_to_music(playlist)
+
+    assert "Syncing playlist file→music: Mix" in caplog.text
+    assert "Adding track to Mix: Rock/new.mp3" in caplog.text
+    assert "Removing track from Mix: Rock/old.mp3" in caplog.text
+    assert "Synced playlist file→music: Mix (1 tracks)" in caplog.text
+
+
 def test_sync_music_to_files_skips_when_file_is_newer(
     orchestrator: SyncOrchestrator,
     apple_music: MagicMock,

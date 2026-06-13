@@ -41,19 +41,25 @@ class SyncOrchestrator:
         return self._exhausted_count
 
     def sync_all(self) -> None:
+        logger.info("Starting sync")
         self._apple_music.ensure_running()
         with self._apple_music.preserve_user_focus():
             self.sync_music_to_files()
             self.sync_files_to_music()
             self._process_retry_queue()
+        logger.info("Sync complete")
 
     def sync_music_to_files(self) -> None:
-        for music_playlist in self._apple_music.list_playlists():
+        music_playlists = self._apple_music.list_playlists()
+        logger.info("Checking %d playlist(s) in Music", len(music_playlists))
+        for music_playlist in music_playlists:
+            logger.info("Syncing playlist music→file: %s", music_playlist.name)
             tracks = self._apple_music.get_playlist_tracks(music_playlist.name)
             relative_paths = [t.relative_path for t in tracks if t.relative_path]
             music_hash = _hash_paths(relative_paths)
             state = self._mapping_store.get_playlist(music_playlist.persistent_id)
             if state and state.music_hash == music_hash:
+                logger.info("Playlist unchanged music→file: %s", music_playlist.name)
                 continue
             playlist_id = state.playlist_id if state else str(uuid.uuid4())
             playlist = Playlist(
@@ -76,9 +82,16 @@ class SyncOrchestrator:
                     last_synced_at=datetime.now(UTC),
                 )
             )
+            logger.info(
+                "Synced playlist music→file: %s (%d tracks)",
+                playlist.name,
+                len(relative_paths),
+            )
 
     def sync_files_to_music(self) -> None:
-        for playlist in self._playlist_store.list_all():
+        playlists = self._playlist_store.list_all()
+        logger.info("Checking %d playlist file(s)", len(playlists))
+        for playlist in playlists:
             self._apply_playlist_to_music(playlist)
 
     def apply_playlist_file(self, path: Path) -> None:
@@ -106,8 +119,10 @@ class SyncOrchestrator:
         self._library_import.remove_file(path)
 
     def _apply_playlist_to_music(self, playlist: Playlist) -> None:
+        logger.info("Syncing playlist file→music: %s", playlist.name)
         music_playlists = {p.name: p for p in self._apple_music.list_playlists()}
         if playlist.name not in music_playlists:
+            logger.info("Creating playlist in Music: %s", playlist.name)
             self._apple_music.create_playlist(playlist.name)
         current = self._apple_music.get_playlist_tracks(playlist.name)
         current_paths = {t.relative_path for t in current if t.relative_path}
@@ -116,6 +131,11 @@ class SyncOrchestrator:
         for rel in target_paths:
             abs_path = resolve_relative_path(self._music_root, rel)
             if not abs_path.exists():
+                logger.info(
+                    "Track missing, queued for retry: %s in %s",
+                    rel,
+                    playlist.name,
+                )
                 self._retry_queue.add(playlist.id, rel)
                 continue
             if not self._apple_music.track_exists_at_path(abs_path):
@@ -130,11 +150,13 @@ class SyncOrchestrator:
             sorted(resolved_paths),
         )
         for rel in diff.to_add:
+            logger.info("Adding track to %s: %s", playlist.name, rel)
             self._apple_music.add_track_by_path(
                 playlist.name,
                 resolve_relative_path(self._music_root, rel),
             )
         for rel in diff.to_remove:
+            logger.info("Removing track from %s: %s", playlist.name, rel)
             self._apple_music.remove_track_by_path(
                 playlist.name,
                 resolve_relative_path(self._music_root, rel),
@@ -148,10 +170,18 @@ class SyncOrchestrator:
                 last_synced_at=datetime.now(UTC),
             )
         )
+        logger.info(
+            "Synced playlist file→music: %s (%d tracks)",
+            playlist.name,
+            len(resolved_paths),
+        )
 
     def _process_retry_queue(self) -> None:
         now = datetime.now(UTC)
-        for item in self._retry_queue.due_items(now):
+        due_items = self._retry_queue.due_items(now)
+        if due_items:
+            logger.info("Processing %d retry queue item(s)", len(due_items))
+        for item in due_items:
             playlist = self._playlist_store.find_by_id(item.playlist_id)
             if playlist:
                 self._apply_playlist_to_music(playlist)
