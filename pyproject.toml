@@ -22,6 +22,9 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/encore"]
 
+[tool.hatch.build.targets.wheel.force-include]
+"src/encore/assets/icons/encore-menubar.png" = "encore/assets/icons/encore-menubar.png"
+
 [dependency-groups]
 dev = [
     "commitizen>=4.16.3",

@@ -2,8 +2,10 @@ from setuptools import setup
 
 APP = ["src/encore/__main__.py"]
 DATA_FILES = []
+ICON_FILE = "assets/icons/encore.icns"
 OPTIONS = {
     "argv_emulation": False,
+    "iconfile": ICON_FILE,
     "plist": {
         "CFBundleName": "Encore",
         "CFBundleDisplayName": "Encore",

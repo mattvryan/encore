@@ -47,3 +47,5 @@ def test_setup_app_has_expected_plist_keys() -> None:
 
     assert '"packages": ["encore", "rumps", "watchdog"]' in content
     assert '"argv_emulation": False' in content
+    assert 'ICON_FILE = "assets/icons/encore.icns"' in content
+    assert '"iconfile": ICON_FILE' in content
