@@ -1,11 +1,6 @@
 from datetime import UTC, datetime
 from pathlib import Path
 
-import pytest
-
-pytest.importorskip("encore.models.playlist")
-pytest.importorskip("encore.services.playlist_file")
-
 from encore.models.playlist import Playlist, PlaylistTrack
 from encore.services.playlist_file import PlaylistFileStore
 
@@ -59,3 +54,16 @@ def test_list_all_playlists(tmp_path: Path) -> None:
     store.write(p2)
     ids = {p.id for p in store.list_all()}
     assert ids == {"1", "2"}
+
+
+def test_playlist_to_dict_and_from_dict() -> None:
+    playlist = Playlist(
+        id="abc",
+        name="Road Trip",
+        updated_at=datetime(2026, 6, 12, 14, 30, tzinfo=UTC),
+        tracks=[PlaylistTrack(relative_path="Rock/song.mp3")],
+    )
+
+    restored = Playlist.from_dict(playlist.to_dict())
+
+    assert restored == playlist
