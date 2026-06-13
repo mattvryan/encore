@@ -2,8 +2,7 @@ from pathlib import Path
 
 import pytest
 
-pytest.importorskip("encore.utils.paths")
-
+from encore.constants import AUDIO_EXTENSIONS
 from encore.utils.paths import (
     is_audio_file,
     relative_to_root,
@@ -38,3 +37,9 @@ def test_is_audio_file() -> None:
 
 def test_slugify() -> None:
     assert slugify("Road Trip 2025!") == "road-trip-2025"
+
+
+def test_audio_extensions_include_common_formats() -> None:
+    assert ".mp3" in AUDIO_EXTENSIONS
+    assert ".m4a" in AUDIO_EXTENSIONS
+    assert ".flac" in AUDIO_EXTENSIONS
