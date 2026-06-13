@@ -7,7 +7,7 @@ import pytest
 
 from encore.models.playlist import Playlist, PlaylistTrack
 from encore.models.sync_state import PlaylistSyncState
-from encore.services.apple_music import MusicPlaylist, MusicTrack
+from encore.services.apple_music import AppleMusicError, MusicPlaylist, MusicTrack
 from encore.services.library_import import LibraryImportService
 from encore.services.playlist_file import PlaylistFileStore
 from encore.services.retry_queue import RetryQueue
@@ -142,6 +142,27 @@ def test_sync_music_to_files_writes_updated_playlist(
     assert saved is not None
     assert saved.name == "Workout"
     assert saved.tracks == [PlaylistTrack(relative_path="Pop/hit.mp3")]
+
+
+def test_sync_music_to_files_skips_playlist_on_apple_music_error(
+    orchestrator: SyncOrchestrator,
+    apple_music: MagicMock,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level("INFO")
+    apple_music.list_playlists.return_value = [
+        MusicPlaylist(name='Music"', persistent_id="111"),
+        MusicPlaylist(name="Workout", persistent_id="222"),
+    ]
+    apple_music.get_playlist_tracks.side_effect = [
+        AppleMusicError("AppleScript timed out after 300s"),
+        [],
+    ]
+
+    orchestrator.sync_music_to_files()
+
+    assert apple_music.get_playlist_tracks.call_count == 2
+    assert 'Skipping playlist music→file: Music" (id=111)' in caplog.text
 
 
 def test_sync_music_to_files_logs_synced_playlist(

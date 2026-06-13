@@ -7,7 +7,11 @@ from pathlib import Path
 
 from encore.models.playlist import Playlist, PlaylistTrack
 from encore.models.sync_state import PlaylistSyncState
-from encore.services.apple_music import AppleMusicService
+from encore.services.apple_music import (
+    AppleMusicError,
+    AppleMusicService,
+    MusicPlaylist,
+)
 from encore.services.library_import import LibraryImportService
 from encore.services.playlist_diff import diff_track_lists
 from encore.services.playlist_file import PlaylistFileStore
@@ -53,8 +57,21 @@ class SyncOrchestrator:
         music_playlists = self._apple_music.list_playlists()
         logger.info("Checking %d playlist(s) in Music", len(music_playlists))
         for music_playlist in music_playlists:
-            logger.info("Syncing playlist music→file: %s", music_playlist.name)
-            tracks = self._apple_music.get_playlist_tracks(music_playlist.name)
+            logger.info(
+                "Syncing playlist music→file: %s (id=%s)",
+                music_playlist.name,
+                music_playlist.persistent_id,
+            )
+            try:
+                tracks = self._apple_music.get_playlist_tracks(music_playlist)
+            except AppleMusicError as exc:
+                logger.warning(
+                    "Skipping playlist music→file: %s (id=%s): %s",
+                    music_playlist.name,
+                    music_playlist.persistent_id,
+                    exc,
+                )
+                continue
             relative_paths = [t.relative_path for t in tracks if t.relative_path]
             music_hash = _hash_paths(relative_paths)
             state = self._mapping_store.get_playlist(music_playlist.persistent_id)
@@ -121,10 +138,23 @@ class SyncOrchestrator:
     def _apply_playlist_to_music(self, playlist: Playlist) -> None:
         logger.info("Syncing playlist file→music: %s", playlist.name)
         music_playlists = {p.name: p for p in self._apple_music.list_playlists()}
-        if playlist.name not in music_playlists:
+        music_playlist = music_playlists.get(playlist.name)
+        if music_playlist is None:
             logger.info("Creating playlist in Music: %s", playlist.name)
-            self._apple_music.create_playlist(playlist.name)
-        current = self._apple_music.get_playlist_tracks(playlist.name)
+            persistent_id = self._apple_music.create_playlist(playlist.name)
+            music_playlist = MusicPlaylist(
+                name=playlist.name, persistent_id=persistent_id
+            )
+        try:
+            current = self._apple_music.get_playlist_tracks(music_playlist)
+        except AppleMusicError as exc:
+            logger.warning(
+                "Skipping playlist file→music: %s (id=%s): %s",
+                music_playlist.name,
+                music_playlist.persistent_id,
+                exc,
+            )
+            return
         current_paths = {t.relative_path for t in current if t.relative_path}
         target_paths = [t.relative_path for t in playlist.tracks]
         resolved_paths: list[str] = []
