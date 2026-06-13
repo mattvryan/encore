@@ -105,7 +105,8 @@ def test_encore_app_configures_menu_bar(encore_app_module: Any) -> None:
     assert app.menu[3] == "Choose Music Folder..."
     assert app.menu[4].title == "Launch at Login"
     assert app.menu[5] is None
-    assert app.menu[6] == "Quit"
+    assert app.menu[6] == "About Encore..."
+    assert app.menu[7] == "Quit"
     assert app._timer.started is True
 
 
@@ -125,6 +126,15 @@ def test_open_sync_folder_without_sync_dir_shows_alert(encore_app_module: Any) -
     app.open_sync_folder(None)
 
     rumps.alert.assert_called_once_with("Encore", "Choose a music folder first.")
+
+
+def test_about_shows_dialog(encore_app_module: Any) -> None:
+    app = encore_app_module.EncoreApp()
+
+    with patch("encore.app.show_about") as mock_show_about:
+        app.about(None)
+
+    mock_show_about.assert_called_once()
 
 
 def test_quit_app_stops_watcher_and_quits(encore_app_module: Any) -> None:
