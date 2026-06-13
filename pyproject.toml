@@ -24,6 +24,7 @@ packages = ["src/encore"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "src/encore/assets/icons/encore-menubar.png" = "encore/assets/icons/encore-menubar.png"
+"src/encore/assets/icons/encore-menubar-idle.png" = "encore/assets/icons/encore-menubar-idle.png"
 
 [dependency-groups]
 dev = [

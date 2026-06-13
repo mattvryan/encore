@@ -98,7 +98,7 @@ def test_encore_app_configures_menu_bar(encore_app_module: Any) -> None:
     assert app.name == "Encore"
     assert app.quit_button is None
     assert app.icon is not None
-    assert Path(app.icon).name == "encore-menubar.png"
+    assert Path(app.icon).name == "encore-menubar-idle.png"
     assert app.menu[0].title == "Status: Idle"
     assert app.menu[1] == "Sync Now"
     assert app.menu[2] == "Open Sync Folder"
@@ -150,6 +150,40 @@ def test_quit_app_stops_watcher_and_quits(encore_app_module: Any) -> None:
     assert app._watcher is None
     assert app._orchestrator is None
     rumps.quit_application.assert_called_once()
+
+
+def test_do_sync_updates_menubar_icon(encore_app_module: Any) -> None:
+    app = encore_app_module.EncoreApp()
+    app._orchestrator = MagicMock()
+    app._orchestrator.sync_all = MagicMock()
+    app._orchestrator.exhausted_count = 0
+
+    with patch.object(app, "_set_status"):
+        app._do_sync()
+
+    assert Path(app.icon).name == "encore-menubar-idle.png"
+    app._orchestrator.sync_all.assert_called_once()
+
+
+def test_do_sync_shows_running_icon_while_syncing(encore_app_module: Any) -> None:
+    app = encore_app_module.EncoreApp()
+    app._orchestrator = MagicMock()
+    seen_icons: list[str] = []
+
+    def capture_icon() -> None:
+        seen_icons.append(Path(app.icon).name)
+
+    def sync_all() -> None:
+        capture_icon()
+
+    app._orchestrator.sync_all = sync_all
+    app._orchestrator.exhausted_count = 0
+
+    with patch.object(app, "_set_status"):
+        app._do_sync()
+
+    assert seen_icons == ["encore-menubar.png"]
+    assert Path(app.icon).name == "encore-menubar-idle.png"
 
 
 def test_start_services_replaces_existing_watcher(encore_app_module: Any) -> None:
