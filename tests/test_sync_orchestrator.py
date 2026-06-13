@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from encore.constants import PLAYLIST_ALLOW_FILENAME
 from encore.models.playlist import Playlist, PlaylistTrack
 from encore.models.sync_state import PlaylistSyncState
 from encore.services.apple_music import AppleMusicError, MusicPlaylist, MusicTrack
@@ -507,3 +508,82 @@ def test_exhausted_count_tracks_retry_queue(
     orchestrator._process_retry_queue()
 
     assert orchestrator.exhausted_count == 1
+
+
+def test_sync_music_to_files_respects_allow_list(
+    orchestrator: SyncOrchestrator,
+    sync_dir: Path,
+    apple_music: MagicMock,
+    playlist_store: PlaylistFileStore,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level("INFO")
+    (sync_dir / PLAYLIST_ALLOW_FILENAME).write_text("Workout\n")
+    apple_music.list_playlists.return_value = [
+        MusicPlaylist(name="Workout", persistent_id="PID1"),
+        MusicPlaylist(name="Road Trip", persistent_id="PID2"),
+    ]
+    apple_music.get_playlist_tracks.return_value = [
+        MusicTrack("Pop/hit.mp3", "T1", "Hit", "Artist", "loc")
+    ]
+
+    orchestrator.sync_music_to_files()
+
+    assert len(playlist_store.list_all()) == 1
+    assert playlist_store.list_all()[0].name == "Workout"
+    assert "Skipping playlist music→file: Road Trip (not in allow-list)" in caplog.text
+
+
+def test_sync_files_to_music_respects_allow_list(
+    orchestrator: SyncOrchestrator,
+    sync_dir: Path,
+    apple_music: MagicMock,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level("INFO")
+    (sync_dir / PLAYLIST_ALLOW_FILENAME).write_text("Allowed\n")
+    allowed = Playlist(
+        id="p1",
+        name="Allowed",
+        updated_at=datetime.now(UTC),
+        tracks=[],
+    )
+    blocked = Playlist(
+        id="p2",
+        name="Blocked",
+        updated_at=datetime.now(UTC),
+        tracks=[],
+    )
+    orchestrator._playlist_store.write(allowed)
+    orchestrator._playlist_store.write(blocked)
+    apple_music.list_playlists.return_value = [
+        MusicPlaylist(name="Allowed", persistent_id="PID1"),
+        MusicPlaylist(name="Blocked", persistent_id="PID2"),
+    ]
+    apple_music.get_playlist_tracks.return_value = []
+
+    orchestrator.sync_files_to_music()
+
+    assert "Syncing playlist file→music: Allowed" in caplog.text
+    assert "Skipping playlist file→music: Blocked (not in allow-list)" in caplog.text
+    apple_music.create_playlist.assert_not_called()
+
+
+def test_sync_all_logs_when_allow_list_active(
+    orchestrator: SyncOrchestrator,
+    sync_dir: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level("INFO")
+    (sync_dir / PLAYLIST_ALLOW_FILENAME).write_text("Workout\nChill Mix\n")
+    focus = orchestrator._apple_music.preserve_user_focus.return_value
+    focus.__enter__ = MagicMock(return_value=None)
+    focus.__exit__ = MagicMock(return_value=False)
+    with (
+        patch.object(orchestrator, "sync_music_to_files"),
+        patch.object(orchestrator, "sync_files_to_music"),
+        patch.object(orchestrator, "_process_retry_queue"),
+    ):
+        orchestrator.sync_all()
+
+    assert "Playlist allow-list active (2 name(s))" in caplog.text

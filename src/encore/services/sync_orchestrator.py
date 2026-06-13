@@ -46,6 +46,9 @@ class SyncOrchestrator:
 
     def sync_all(self) -> None:
         logger.info("Starting sync")
+        allowed = self._playlist_store.allowed_names()
+        if allowed is not None:
+            logger.info("Playlist allow-list active (%d name(s))", len(allowed))
         self._apple_music.ensure_running()
         with self._apple_music.preserve_user_focus():
             self.sync_music_to_files()
@@ -57,6 +60,12 @@ class SyncOrchestrator:
         music_playlists = self._apple_music.list_playlists()
         logger.info("Checking %d playlist(s) in Music", len(music_playlists))
         for music_playlist in music_playlists:
+            if not self._is_playlist_allowed(music_playlist.name):
+                logger.info(
+                    "Skipping playlist music→file: %s (not in allow-list)",
+                    music_playlist.name,
+                )
+                continue
             logger.info(
                 "Syncing playlist music→file: %s (id=%s)",
                 music_playlist.name,
@@ -137,7 +146,19 @@ class SyncOrchestrator:
     def handle_audio_deleted(self, path: Path) -> None:
         self._library_import.remove_file(path)
 
+    def _is_playlist_allowed(self, name: str) -> bool:
+        allowed = self._playlist_store.allowed_names()
+        if allowed is None:
+            return True
+        return name in allowed
+
     def _apply_playlist_to_music(self, playlist: Playlist) -> None:
+        if not self._is_playlist_allowed(playlist.name):
+            logger.info(
+                "Skipping playlist file→music: %s (not in allow-list)",
+                playlist.name,
+            )
+            return
         logger.info("Syncing playlist file→music: %s", playlist.name)
         music_playlists = {p.name: p for p in self._apple_music.list_playlists()}
         music_playlist = music_playlists.get(playlist.name)

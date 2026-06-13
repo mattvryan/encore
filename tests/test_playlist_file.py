@@ -1,6 +1,7 @@
 from datetime import UTC, datetime
 from pathlib import Path
 
+from encore.constants import PLAYLIST_ALLOW_FILENAME
 from encore.models.playlist import Playlist, PlaylistTrack
 from encore.services.playlist_file import PlaylistFileStore
 
@@ -67,3 +68,17 @@ def test_playlist_to_dict_and_from_dict() -> None:
     restored = Playlist.from_dict(playlist.to_dict())
 
     assert restored == playlist
+
+
+def test_allowed_names_returns_none_when_file_missing(tmp_path: Path) -> None:
+    store = PlaylistFileStore(tmp_path)
+    assert store.allowed_names() is None
+
+
+def test_allowed_names_parses_playlist_names(tmp_path: Path) -> None:
+    store = PlaylistFileStore(tmp_path)
+    (tmp_path / PLAYLIST_ALLOW_FILENAME).write_text(
+        "Road Trip\n\nWorkout\n  Chill Mix  \n"
+    )
+
+    assert store.allowed_names() == {"Road Trip", "Workout", "Chill Mix"}

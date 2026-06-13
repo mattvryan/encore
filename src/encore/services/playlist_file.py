@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+from encore.constants import PLAYLIST_ALLOW_FILENAME
 from encore.models.playlist import Playlist
 from encore.utils.paths import slugify
 
@@ -45,6 +46,17 @@ class PlaylistFileStore:
 
     def list_all(self) -> list[Playlist]:
         return [self.read(pid) for pid in self._id_to_filename]
+
+    def allowed_names(self) -> set[str] | None:
+        path = self._sync_dir / PLAYLIST_ALLOW_FILENAME
+        if not path.exists():
+            return None
+        names: set[str] = set()
+        for line in path.read_text().splitlines():
+            name = line.strip()
+            if name:
+                names.add(name)
+        return names
 
     def _find_path(self, playlist_id: str) -> Path:
         if playlist_id not in self._id_to_filename:
