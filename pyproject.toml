@@ -1,0 +1,62 @@
+[project]
+name = "encore"
+version = "0.1.0"
+description = "Sync Apple Music playlists across Macs via Dropbox"
+readme = "README.md"
+authors = [
+    { name = "Matt Ryan", email = "alien.czar@gmail.com" },
+]
+requires-python = ">=3.12"
+dependencies = [
+    "rumps>=0.4.0",
+    "watchdog>=6.0.0",
+]
+
+[project.scripts]
+encore = "encore.__main__:main"
+
+[build-system]
+requires = ["uv_build>=0.11.21,<0.12.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "commitizen>=4.16.3",
+    "pre-commit>=4.6.0",
+    "pytest>=9.0.3",
+    "ruff>=0.15.17",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "UP",  # pyupgrade
+    "SIM", # flake8-simplify
+]
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["encore"]
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+version = "0.1.0"
+tag_format = "v$version"
+version_files = [
+    "pyproject.toml:version",
+    "src/encore/__init__.py:__version__",
+]
+update_changelog_on_bump = false
