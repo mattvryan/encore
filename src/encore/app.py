@@ -4,6 +4,7 @@ from pathlib import Path
 
 import rumps
 
+from encore.icons import menubar_icon_path
 from encore.services.apple_music import AppleMusicService
 from encore.services.folder_watcher import FolderWatcher
 from encore.services.library_import import LibraryImportService
@@ -18,7 +19,11 @@ logger = logging.getLogger(__name__)
 
 class EncoreApp(rumps.App):
     def __init__(self) -> None:
-        super().__init__("Encore", quit_button=None)
+        super().__init__(
+            "Encore",
+            icon=str(menubar_icon_path()),
+            quit_button=None,
+        )
         self.settings = Settings.load()
         self._orchestrator: SyncOrchestrator | None = None
         self._watcher: FolderWatcher | None = None

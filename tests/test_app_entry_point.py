@@ -1,5 +1,6 @@
 import importlib
 import sys
+from pathlib import Path
 from types import ModuleType
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -37,9 +38,15 @@ def _install_rumps_mock() -> ModuleType:
             return MenuItem(key)
 
     class App:
-        def __init__(self, name: str, quit_button: str | None = None) -> None:
+        def __init__(
+            self,
+            name: str,
+            quit_button: str | None = None,
+            icon: str | None = None,
+        ) -> None:
             self.name = name
             self.quit_button = quit_button
+            self.icon = icon
             self.menu: list[Any] | MenuDict | None = None
 
     rumps.App = App
@@ -90,6 +97,8 @@ def test_encore_app_configures_menu_bar(encore_app_module: Any) -> None:
 
     assert app.name == "Encore"
     assert app.quit_button is None
+    assert app.icon is not None
+    assert Path(app.icon).name == "encore-menubar.png"
     assert app.menu[0].title == "Status: Idle"
     assert app.menu[1] == "Sync Now"
     assert app.menu[2] == "Open Sync Folder"
