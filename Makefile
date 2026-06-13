@@ -1,4 +1,4 @@
-.PHONY: install sync lint format test hooks check
+.PHONY: install sync lint format test hooks check dmg
 
 install: sync hooks
 
@@ -21,6 +21,9 @@ test:
 	uv run pytest
 
 check: lint test
+
+dmg:
+	bash scripts/build_dmg.sh
 
 commit:
 	uv run cz commit
