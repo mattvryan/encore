@@ -78,6 +78,9 @@ def test_hash_paths_is_order_independent() -> None:
 
 
 def test_sync_all_runs_full_pipeline(orchestrator: SyncOrchestrator) -> None:
+    focus = orchestrator._apple_music.preserve_user_focus.return_value
+    focus.__enter__ = MagicMock(return_value=None)
+    focus.__exit__ = MagicMock(return_value=False)
     with (
         patch.object(orchestrator, "sync_music_to_files") as sync_music,
         patch.object(orchestrator, "sync_files_to_music") as sync_files,
@@ -86,6 +89,9 @@ def test_sync_all_runs_full_pipeline(orchestrator: SyncOrchestrator) -> None:
         orchestrator.sync_all()
 
     orchestrator._apple_music.ensure_running.assert_called_once()
+    orchestrator._apple_music.preserve_user_focus.assert_called_once()
+    focus.__enter__.assert_called_once()
+    focus.__exit__.assert_called_once()
     sync_music.assert_called_once()
     sync_files.assert_called_once()
     process_retry.assert_called_once()

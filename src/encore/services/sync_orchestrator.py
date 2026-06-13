@@ -42,9 +42,10 @@ class SyncOrchestrator:
 
     def sync_all(self) -> None:
         self._apple_music.ensure_running()
-        self.sync_music_to_files()
-        self.sync_files_to_music()
-        self._process_retry_queue()
+        with self._apple_music.preserve_user_focus():
+            self.sync_music_to_files()
+            self.sync_files_to_music()
+            self._process_retry_queue()
 
     def sync_music_to_files(self) -> None:
         for music_playlist in self._apple_music.list_playlists():
