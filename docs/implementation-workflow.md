@@ -42,19 +42,29 @@ Rules for implementing [Encore](superpowers/plans/2026-06-12-encore.md) one task
 
 ## After implementing a task
 
-When lint and tests pass:
+When lint and tests pass locally:
 
 1. Commit the changes.
 2. Push the branch to origin.
 3. Open a pull request against `main`.
-4. Wait for CI to pass.
-5. Stop and wait for review — do not start the next task until the PR is merged.
+4. Wait for CI to pass on the PR.
+5. **If CI passes:** squash-merge the PR, sync `main`, and proceed to the next task automatically.
+6. **If CI fails:** stop and notify the reviewer — do not merge or start the next task until the failure is resolved together.
+
+```bash
+# After green CI
+gh pr merge <number> --squash --delete-branch
+git checkout main
+git pull origin main
+git fetch --prune
+```
 
 ## Pull requests
 
 - One PR per task.
 - PR title should follow conventional commit style and describe the task (e.g. `feat: add playlist track diff logic (task 4)`).
 - PR body should summarize what changed and include a brief test plan.
+- Use **squash merge** when landing PRs.
 - **Merged branches are automatically deleted on origin** (GitHub repo setting: *Automatically delete head branches*). After merging, prune stale local branches:
 
   ```bash
