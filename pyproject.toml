@@ -1,0 +1,13 @@
+[project]
+name = "encore"
+version = "0.0.0"
+description = "Apple Music playlist transfer helpers"
+requires-python = ">=3.12"
+readme = "README.md"
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["scripts"]
