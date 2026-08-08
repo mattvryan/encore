@@ -157,6 +157,34 @@ def test_list_playlists_parses_osascript_output() -> None:
     ]
 
 
+def test_list_playlists_skips_default_music_playlist() -> None:
+    sep = pl.FIELD_SEP
+    with patch.object(
+        pl,
+        "run_osascript",
+        return_value=(
+            f"Music{sep}1\nRoad Trip{sep}123\nMusic{sep}999\nWorkout{sep}456\n"
+        ),
+    ):
+        playlists = pl.list_playlists()
+
+    assert playlists == [
+        pl.MusicPlaylist(name="Road Trip", persistent_id="123"),
+        pl.MusicPlaylist(name="Workout", persistent_id="456"),
+    ]
+
+
+def test_location_to_relative_accepts_hfs_path(tmp_path: Path) -> None:
+    music_root = tmp_path / "Music"
+    track = music_root / "Rock" / "song.mp3"
+    track.parent.mkdir(parents=True)
+    track.touch()
+
+    # AppleScript `location as string` returns HFS-style paths.
+    hfs = f"Macintosh HD:{':'.join(track.resolve().parts[1:])}"
+    assert pl.location_to_relative(hfs, music_root) == "Rock/song.mp3"
+
+
 def test_get_playlist_tracks_parses_and_relativizes(tmp_path: Path) -> None:
     music_root = tmp_path / "Music"
     track = music_root / "Rock" / "a.mp3"
@@ -165,9 +193,11 @@ def test_get_playlist_tracks_parses_and_relativizes(tmp_path: Path) -> None:
     playlist = pl.MusicPlaylist(name="Mix", persistent_id="99")
     raw = f"Song\tArtist\tAlbum\t{track}\nCloud\tSomeone\t\t\n"
 
-    with patch.object(pl, "run_osascript", return_value=raw):
+    with patch.object(pl, "run_osascript", return_value=raw) as run:
         tracks = pl.get_playlist_tracks(playlist, music_root)
 
+    script = run.call_args.args[0]
+    assert "POSIX path of (location of t)" in script
     assert tracks == [
         pl.TrackRef(
             relative_path="Rock/a.mp3",
