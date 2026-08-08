@@ -121,6 +121,9 @@ def list_playlists() -> list[MusicPlaylist]:
         name, pid = line.split(FIELD_SEP, 1)
         if not pid.isdigit():
             continue
+        if name == "Music":
+            # Library playlist is huge and routinely times out on export.
+            continue
         playlists.append(MusicPlaylist(name=name, persistent_id=pid))
     return playlists
 
@@ -137,7 +140,7 @@ def get_playlist_tracks(playlist: MusicPlaylist, music_root: Path) -> list[Track
                 set trackLocation to ""
                 set trackAlbum to ""
                 try
-                    set trackLocation to location of t as string
+                    set trackLocation to POSIX path of (location of t)
                 end try
                 try
                     set trackAlbum to album of t
@@ -169,10 +172,27 @@ def get_playlist_tracks(playlist: MusicPlaylist, music_root: Path) -> list[Track
     return tracks
 
 
+def location_path(location: str) -> Path:
+    """Normalize Music/AppleScript location strings to a filesystem Path.
+
+    AppleScript often yields HFS paths (``Macintosh HD:Users:...``) when
+    coerced with ``as string``; prefer POSIX, but accept HFS as a fallback.
+    """
+    if not location:
+        return Path()
+    value = location.removeprefix("file://")
+    if value.startswith("/"):
+        return Path(value)
+    if ":" in value:
+        _volume, *parts = value.split(":")
+        return Path("/" + "/".join(parts))
+    return Path(value)
+
+
 def location_to_relative(location: str, music_root: Path) -> str | None:
     if not location:
         return None
-    path = Path(location.removeprefix("file://"))
+    path = location_path(location)
     try:
         return str(path.resolve().relative_to(music_root.resolve()))
     except ValueError:
